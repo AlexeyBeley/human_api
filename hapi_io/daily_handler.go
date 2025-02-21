@@ -74,7 +74,7 @@ func main() {
 func ConvertDailyJsonToHR(src_file_path, dst_file_path string) (reports []WorkerDailyReport, err error) {
 	log.Printf("Called with src '%s' and dst '%s'", src_file_path, dst_file_path)
 
-	data, err := ioutil.ReadFile(src_file_path)
+	data, err := os.ReadFile(src_file_path)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func ConvertHRToDailyJson(src_file_path, dst_file_path string) (reports []Worker
 
 func ReadDailyFromHRFile(src_file_path string) ([]WorkerDailyReport, error) {
 	log.Printf("Reading reports from '%s'", src_file_path)
-	data, err := ioutil.ReadFile(src_file_path)
+	data, err := os.ReadFile(src_file_path)
 	if err != nil {
 		return nil, err
 	}
