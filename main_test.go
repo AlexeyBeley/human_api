@@ -24,7 +24,7 @@ func TestLoadConfiguration(t *testing.T) {
 		}
 		config, err := loadConfiguration(filePath)
 		if err != nil {
-			t.Errorf("Failed with file: %s, %s", filePath, err)
+			t.Errorf("Failed with file: %s, %v", filePath, err)
 
 		}
 		if config.SprintName != testConfig.SprintName {

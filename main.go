@@ -8,11 +8,11 @@ import (
 )
 
 type Configuration struct {
-	sprintName             string `json:"sprint_name"`
-	reportsDirPath         string `json:"reports_dir_path"`
-	workerId               string `json:"worker_id"`
-	azureDevopsKey         string `json:"azure_devops_key"`
-	azureDevopsCompanyName string `json:"azure_devops_company"`
+	SprintName             string `json:"sprint_name"`
+	ReportsDirPath         string `json:"reports_dir_path"`
+	WorkerId               string `json:"worker_id"`
+	AzureDevopsKey         string `json:"azure_devops_key"`
+	AzureDevopsCompanyName string `json:"azure_devops_company"`
 }
 
 const preReportFileName = "pre_report.json"
@@ -21,7 +21,7 @@ const baseFileName = "base.hapi"
 const postReportFileName = "post_report.json"
 
 func main() {
-	fmt.Println("Test")
+	fmt.Printf("Test %s, %s, %s, %s", preReportFileName, inputFileName, baseFileName, postReportFileName)
 	config, err := loadConfiguration("")
 	if err != nil {
 		log.Printf("%v", config)
@@ -43,17 +43,22 @@ func main() {
 }
 
 func loadConfiguration(filePath string) (config Configuration, err error) {
+	config = Configuration{SprintName: "",
+		ReportsDirPath:         "",
+		WorkerId:               "",
+		AzureDevopsKey:         "",
+		AzureDevopsCompanyName: ""}
 
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		return Configuration{}, err
+		return config, err
 	}
 
 	err = json.Unmarshal(data, &config)
 	if err != nil {
-		return nil, err
+		return config, err
 	}
 
-	return config, fmt.Errorf("error")
+	return config, nil
 
 }
