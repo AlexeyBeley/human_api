@@ -10,7 +10,7 @@ import (
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
 )
 
-func main() {
+func NotMain() {
 	organizationUrl := "https://dev.azure.com/myorg" // todo: replace value with your organization url
 	personalAccessToken := "XXXXXXXXXXXXXXXXXXXXXXX" // todo: replace value with your PAT
 

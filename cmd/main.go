@@ -2,9 +2,12 @@ package main
 
 import (
 	"fmt"
+
+	"github.com/AlexeyBeley/human_api/human_api"
 )
 
-func NotMain() {
+func main() {
+	human_api.DailyRoutine()
 	/*
 		   daily_handler --action daily_json_to_hr --src --dst
 
