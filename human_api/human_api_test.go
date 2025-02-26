@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// /Test configuration
 var testConfig = Configuration{
 	SprintName:             "sp1",
 	ReportsDirPath:         "1",

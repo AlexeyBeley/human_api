@@ -1,7 +1,7 @@
 /*
 go build -gcflags="all=-N -l" daily_handler.go
-dlv exec daily_handler -- --action daily_json_to_hr --src "/Users/alexey.beley/git/horey/human_api/horey/human_api/go/daily_report_sample.json" --dst "dst_file_path"
-go run . --action daily_json_to_hr --src "/Users/alexey.beley/git/horey/human_api/horey/human_api/go/daily_report_sample.json" --dst "dst_file_path"
+dlv exec daily_handler -- --action daily_json_to_hr --src "/go/daily_report_sample.json" --dst "dst_file_path"
+go run . --action daily_json_to_hr --src "/go/daily_report_sample.json" --dst "dst_file_path"
 */
 package human_api
 
