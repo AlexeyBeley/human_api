@@ -193,29 +193,53 @@ func DownloadSprintStatus(config Configuration) error {
 		Wiql: &workitemtracking.Wiql{Query: &query},
 		Project: &config.ProjectName,
 	})
-	
-	ids := make([]int, 200)
-	for i, wit := range (*queryResult.WorkItems)[:200]{
-		ids[i] = *wit.Id
-	}
-	//fmt.Printf("queryResult.WorkItems: %v\n", *(.Id)
-
 	if err != nil {
 		log.Fatalf("Failed to fetch work item IDs: %v", err)
 	}
+	
+	WitCount := len(*queryResult.WorkItems)
 
-    
+	channels := make([]chan *[]workitemtracking.WorkItem, WitCount/200)
+	for i:=0; i < len(channels); i++ {
+		channels[i] = make(chan *[]workitemtracking.WorkItem)
+	}
+	
+	for i:= range channels {
+		WitRefSlice := (*queryResult.WorkItems)[i*200 : i*200+200]
+		go func ()  {
+			CallGetWorkItems(config, ctx, WorkItemTrackingClient, WitRefSlice, channels[i])
+		}()
+	}
+
+	//fmt.Printf("queryResult.WorkItems: %v\n", *(.Id)
+	//*[]workitemtracking.WorkItem
+
+	AllWits := []workitemtracking.WorkItem{}
+	for _, ch := range channels{
+		IterationWorkItems := <- ch
+		AllWits = append(AllWits, *IterationWorkItems...)
+		
+    }
+	fmt.Printf("IterationWorkItems: %d\n", len(AllWits))
+	err = CacheToFile(&AllWits)
+	if err != nil{
+		return err
+	}
+	return nil
+}
+
+func CallGetWorkItems(config Configuration, ctx context.Context, WorkItemTrackingClient workitemtracking.Client, WitRefSlice []workitemtracking.WorkItemReference, ch chan *[]workitemtracking.WorkItem)(err error){
+	ids := make([]int, len(WitRefSlice))
+	for i, wit := range WitRefSlice{
+		ids[i] = *wit.Id
+	}
 	args := workitemtracking.GetWorkItemsArgs{Project: &config.ProjectName, Ids: &ids}
 	IterationWorkItems, err := WorkItemTrackingClient.GetWorkItems(ctx, args)
 	if err != nil{
 		return err
 	}
-     
-	fmt.Printf("IterationWorkItems: %v\n", IterationWorkItems)
-	err = CacheToFile(IterationWorkItems)
-	if err != nil{
-		return err
-	}
+	ch <- IterationWorkItems
+	close(ch)
 	return nil
 }
 
