@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/AlexeyBeley/human_api/human_api"
+	"github.com/AlexeyBeley/human_api/azure_devops_api"
 )
 
 func main() {
@@ -15,8 +16,12 @@ func main() {
 
 	if *action == "daily" {
 		human_api.DailyRoutine(*configFilePath)
-	} else if *action == "none" {
-		log.Println("none")
+	} else if *action == "download_all" {
+		config, err := azure_devops_api.LoadConfig(*configFilePath)
+		if err != nil{
+			log.Fatalf("Error received '%v'", err)	
+		}
+		azure_devops_api.DownloadAllWits(config, "/tmp/wit.json")
 	} else {
 		log.Fatalf("Unknown action '%v'", *action)
 	}

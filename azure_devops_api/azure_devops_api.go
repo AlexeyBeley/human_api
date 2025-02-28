@@ -173,7 +173,7 @@ func GetIterationUuid(config Configuration) (id uuid.UUID, err error) {
 	return id, err
 }
 
-func DownloadSprintStatus(config Configuration) error {
+func DownloadAllWits(config Configuration, dstFilePath string) error {
 	WorkItemTrackingClient, ctx, err := GetWorkItemTrackingClientAndCtx(config)
 	fmt.Printf("%v, %v, %v\n", WorkItemTrackingClient, ctx, err)
 	
@@ -221,7 +221,7 @@ func DownloadSprintStatus(config Configuration) error {
 		
     }
 	fmt.Printf("IterationWorkItems: %d\n", len(AllWits))
-	err = CacheToFile(&AllWits)
+	err = CacheToFile(&AllWits, dstFilePath)
 	if err != nil{
 		return err
 	}
@@ -243,13 +243,13 @@ func CallGetWorkItems(config Configuration, ctx context.Context, WorkItemTrackin
 	return nil
 }
 
-func CacheToFile(IterationWorkItems *[]workitemtracking.WorkItem) (err error){
+func CacheToFile(IterationWorkItems *[]workitemtracking.WorkItem, dstFilePath string) (err error){
 	jsonData, err := json.MarshalIndent(IterationWorkItems, "", "  ")
 	if err != nil {
 		return err
 	}
 
-	err = os.WriteFile("/tmp/wips.json", jsonData, 0644)
+	err = os.WriteFile(dstFilePath, jsonData, 0644)
 	if err != nil {
 		return err
 	}

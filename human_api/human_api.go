@@ -80,7 +80,7 @@ func DailyRoutineExtract(config azure_devops_api.Configuration, preReportFilePat
 		if checkFileExists(baseFilePath) {
 			return fmt.Errorf("pre report file does not exist. Base file exists '%v'", baseFilePath)
 		}
-		DownloadSprintStatus(config, preReportFilePath)
+		DownloadAllWits(config, preReportFilePath)
 	}
 
 	if !checkFileExists(inputFilePath) {
@@ -153,9 +153,9 @@ func loadConfiguration(filePath string) (config Configuration, err error) {
 
 }
 
-func DownloadSprintStatus(config azure_devops_api.Configuration, dstFilePath string) (err error) {
+func DownloadAllWits(config azure_devops_api.Configuration, dstFilePath string) (err error) {
 	log.Printf("%v, %v", config, dstFilePath)
-	err = azure_devops_api.DownloadSprintStatus(config)
+	err = azure_devops_api.DownloadAllWits(config, dstFilePath)
 	return err
 }
 
