@@ -45,7 +45,7 @@ func HoreyClient(config Configuration) error {
 	// Azure DevOps organization and project details
 	organization := config.OrganizationName
 	project := config.OrganizationName
-	workItemID := 11111              // Replace with the actual work item ID
+	workItemID := 11111               // Replace with the actual work item ID
 	pat := config.PersonalAccessToken // Replace with your actual PAT
 
 	// Construct the API URL
@@ -116,10 +116,9 @@ func GetAllWits(config Configuration) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("Fetched %d", len(ids))
+	fmt.Printf("fetched %d\n", len(ids))
 	return nil
 }
-
 
 func GetCoreClientAndCtx(config Configuration) (core.Client, context.Context, error) {
 	organizationUrl := "https://dev.azure.com/" + config.OrganizationName // todo: replace value with your organization url
@@ -245,8 +244,6 @@ func GetIterationUuid(config Configuration) (id uuid.UUID, err error) {
 	return id, err
 }
 
-
-
 func CallGetWorkItems(config Configuration, ctx context.Context, WorkItemTrackingClient workitemtracking.Client, WitIds []int, ch chan *[]workitemtracking.WorkItem) (err error) {
 	Fields := []string{"System.State", "System.Id", "System.CreatedBy", "System.CreatedDate"}
 	args := workitemtracking.GetWorkItemsArgs{Project: &config.ProjectName, Ids: &WitIds, Fields: &Fields}
@@ -260,7 +257,7 @@ func CallGetWorkItems(config Configuration, ctx context.Context, WorkItemTrackin
 	return nil
 }
 
-func GetAllFields() error{
+func GetAllFields() error {
 	//todo: replace with real implementation
 	connection := azuredevops.NewPatConnection("organizationUrl", "config.PersonalAccessToken")
 
@@ -311,13 +308,13 @@ func LoadConfig(configFilePath string) (config Configuration, err error) {
 func getWorkItemIDs(config Configuration, ctx context.Context) ([]int, error) {
 
 	client := http.Client{Timeout: 10 * time.Second}
-	requestUrl := "https://dev.azure.com/" + config.OrganizationName + "/" +config.ProjectName + "/_apis/wit/wiql?api-version=7.0"
+	requestUrl := "https://dev.azure.com/" + config.OrganizationName + "/" + config.ProjectName + "/_apis/wit/wiql?api-version=7.0"
 	wiqlData := fmt.Sprintf(`{"query": "SELECT [System.Id] FROM WorkItems Where [System.TeamProject] = '%s'"}`, config.ProjectName)
-	AuthHeaderValue := "Basic "+basicAuth(config.PersonalAccessToken)
-	
+	AuthHeaderValue := "Basic " + basicAuth(config.PersonalAccessToken)
+
 	jsonBody := []byte(wiqlData)
- 	bodyReader := bytes.NewReader(jsonBody)
-		
+	bodyReader := bytes.NewReader(jsonBody)
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestUrl, bodyReader)
 	if err != nil {
 		return []int{}, err
@@ -326,8 +323,8 @@ func getWorkItemIDs(config Configuration, ctx context.Context) ([]int, error) {
 	// Set the Authorization header
 	req.Header.Set("Authorization", AuthHeaderValue)
 	req.Header.Set("Content-Type", "application/json")
-		
-		// Send the request
+
+	// Send the request
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -340,7 +337,7 @@ func getWorkItemIDs(config Configuration, ctx context.Context) ([]int, error) {
 		return nil, fmt.Errorf("HTTP status error: %d %s", resp.StatusCode, resp.Status)
 	}
 
-		// Decode the JSON response
+	// Decode the JSON response
 	var queryResult witWorkItemQueryResult
 	err = json.NewDecoder(resp.Body).Decode(&queryResult)
 	if err != nil {
@@ -363,20 +360,19 @@ func getWorkItemIDs(config Configuration, ctx context.Context) ([]int, error) {
 	if queryResult.WorkItemRelations != nil && len(*queryResult.WorkItemRelations) != 0 {
 		log.Fatal("Unexpected status: Length of the WorkItemRelations is not 0")
 	}
-		
+
 	return allIDs[0:lenIds], nil
 }
-func getClient()http.Client{
+func getClient() http.Client {
 	return http.Client{Timeout: 10 * time.Second}
 }
 
-func getRequest(config Configuration, ctx context.Context,  RequestPath string) (*http.Request, error){
-	
-	requestUrl := "https://dev.azure.com/" + config.OrganizationName + "/" +config.ProjectName + "/_apis/"+ RequestPath
-	AuthHeaderValue := "Basic "+basicAuth(config.PersonalAccessToken)
-	
-		
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestUrl, nil)
+func getRequest(config Configuration, ctx context.Context, RequestPath string) (*http.Request, error) {
+
+	requestUrl := "https://dev.azure.com/" + config.OrganizationName + "/" + config.ProjectName + "/_apis/" + RequestPath
+	AuthHeaderValue := "Basic " + basicAuth(config.PersonalAccessToken)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestUrl, nil)
 	if err != nil {
 		return req, err
 	}
@@ -395,8 +391,8 @@ func DownloadAllWits(config Configuration, dstFilePath string) error {
 		log.Fatal(err)
 	}
 
-    //todo: remove 
-	WitIds = WitIds[:400]
+	//todo: remove
+	//WitIds = WitIds[:400]
 	//todo: end remove
 
 	WitCount := len(WitIds)
@@ -418,7 +414,8 @@ func DownloadAllWits(config Configuration, dstFilePath string) error {
 	//*[]workitemtracking.WorkItem
 
 	AllWits := []workitemtracking.WorkItem{}
-	for _, ch := range channels {
+	for i, ch := range channels {
+		fmt.Printf("fetched from chanel : %d/%d", i, len(channels))
 		IterationWorkItems := <-ch
 		AllWits = append(AllWits, *IterationWorkItems...)
 
@@ -431,31 +428,38 @@ func DownloadAllWits(config Configuration, dstFilePath string) error {
 	return nil
 }
 
-func GetWorkItemsBySlice(config Configuration, ctx context.Context, WitIds []int, ch chan *[]workitemtracking.WorkItem)error{
+func GetWorkItemsBySlice(config Configuration, ctx context.Context, WitIds []int, ch chan *[]workitemtracking.WorkItem) error {
+	retWorkItems := []workitemtracking.WorkItem{}
 
-	req, err := getRequest(config, ctx, fmt.Sprintf("wit/workitems/%d?$expand=all&api-version=7.0", WitIds[0]))
-	if err != nil{
-		return err
-	}
-	client := getClient()
-	
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
+	for i, WitId := range WitIds {
+		fmt.Printf("fetched witid  : %d/%d\n", i, len(WitIds))
+		req, err := getRequest(config, ctx, fmt.Sprintf("wit/workitems/%d?$expand=all&api-version=7.0", WitId))
+		if err != nil {
+			return err
+		}
+		client := getClient()
 
-	// Check the status code
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("HTTP status error: %d %s", resp.StatusCode, resp.Status)
+		resp, err := client.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		// Check the status code
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("HTTP status error: %d %s", resp.StatusCode, resp.Status)
+		}
+
+		// Decode the JSON response
+		//var queryResult witWorkItemQueryResult
+		var wit workitemtracking.WorkItem
+		err = json.NewDecoder(resp.Body).Decode(&wit)
+		if err != nil {
+			return err
+		}
+		retWorkItems = append(retWorkItems, wit)
 	}
 
-	// Decode the JSON response
-	//var queryResult witWorkItemQueryResult
-	var wits []workitemtracking.WorkItem
-	err = json.NewDecoder(resp.Body).Decode(&wits)
-	if err != nil {
-		return err
-	}
+	ch <- &retWorkItems
 	return nil
 }

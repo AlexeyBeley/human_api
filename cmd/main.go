@@ -1,5 +1,5 @@
 /*
-download_all go test 
+download_all go test
 */
 package main
 
@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/AlexeyBeley/human_api/human_api"
 	"github.com/AlexeyBeley/human_api/azure_devops_api"
+	"github.com/AlexeyBeley/human_api/human_api"
 )
 
 func main() {
@@ -21,8 +21,8 @@ func main() {
 		human_api.DailyRoutine(*configFilePath)
 	} else if *action == "download_all" {
 		config, err := azure_devops_api.LoadConfig(*configFilePath)
-		if err != nil{
-			log.Fatalf("Error received '%v'", err)	
+		if err != nil {
+			log.Fatalf("Error received '%v'", err)
 		}
 		azure_devops_api.DownloadAllWits(config, "/tmp/wit.json")
 	} else {

@@ -118,7 +118,7 @@ func DailyRoutineSubmit(config azure_devops_api.Configuration, preReportFilePath
 	inputJsonFilePath := strings.Replace(filepath.Base(inputFilePath), ".hapi", "_hapi.json", 1)
 
 	reports, err := ConvertHRToDailyJson(inputFilePath, inputJsonFilePath)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	logWithLineNumber(fmt.Sprintf("Submitted %d", len(reports)))
@@ -159,7 +159,7 @@ func DownloadAllWits(config azure_devops_api.Configuration, dstFilePath string) 
 	return err
 }
 
-//Return True if exists, False if not or fails on error.
+// Return True if exists, False if not or fails on error.
 func checkFileExists(path string) (exists bool) {
 	_, err := os.Stat(path)
 	if err != nil {
