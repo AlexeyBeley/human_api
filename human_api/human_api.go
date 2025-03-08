@@ -21,15 +21,15 @@ type Configuration struct {
 	AzureDevopsConfigurationFilePath string `json:"AzureDevopsConfigurationFilePath"`
 }
 
-type Wobject struct{
-	Id string `json:"Id"`
-	Title string `json:"Title"`
-	Description string `json:"Description"`
-	LeftTime int `json:"LeftTime"`
-	InvestedTime int `json:"InvestedTime"`
-	WorkerID string `json:"WorkerID"`
-	ChildrenIDs []string `json:"ChildrenIDs"`
-	ParentID string `json:"ParentID"`
+type Wobject struct {
+	Id           string   `json:"Id"`
+	Title        string   `json:"Title"`
+	Description  string   `json:"Description"`
+	LeftTime     int      `json:"LeftTime"`
+	InvestedTime int      `json:"InvestedTime"`
+	WorkerID     string   `json:"WorkerID"`
+	ChildrenIDs  []string `json:"ChildrenIDs"`
+	ParentID     string   `json:"ParentID"`
 }
 
 const preReportFileName = "pre_report.json"
@@ -118,12 +118,12 @@ func DailyRoutineExtract(config Configuration, azureDevopsConfig azure_devops_ap
 	}
 
 	if !checkFileExists(inputFilePath) {
-		
+
 		dailyJSONFilePath, err := GenerateDailyRepprt(config, preReportFilePath)
 		check(err)
 		_, err = ConvertDailyJsonToHR(dailyJSONFilePath, baseFilePath)
 		check(err)
-		
+
 		err = copyFile(baseFilePath, inputFilePath)
 		if err != nil {
 			fmt.Println("Error copying file:", err)
@@ -155,16 +155,15 @@ func GenerateDailyRepprt(config Configuration, statusFilePath string) (dstFilePa
 	//WorkerDailyReport{}
 }
 
-func GenerateDailyReport(config Configuration, wobjects []Wobject) (reportFilePath string, err error){
-log.Printf("%v", wobjects)
-return reportFilePath, nil
+func GenerateDailyReport(config Configuration, wobjects []Wobject) (reportFilePath string, err error) {
+	log.Printf("%v", wobjects)
+	return reportFilePath, nil
 }
 
-func ConvertAzureDevopsStatusToWobjects(filePath string) (wobjects []Wobject, err error){
+func ConvertAzureDevopsStatusToWobjects(filePath string) (wobjects []Wobject, err error) {
 	log.Printf("%v", filePath)
 	return wobjects, nil
-	} 
-	
+}
 
 func DailyRoutineSubmit(config azure_devops_api.Configuration, preReportFilePath, inputFilePath, baseFilePath, postReportFilePath string) (err error) {
 	if !checkFileExists(preReportFilePath) ||

@@ -8,7 +8,6 @@ import (
 	"testing"
 )
 
-
 func TestLoadConfiguration(t *testing.T) {
 	t.Run("Init test", func(t *testing.T) {
 		filePath, err := GetConfigFilePath("")
@@ -47,13 +46,12 @@ func GetConfigFilePath(basename string) (string, error) {
 
 }
 
-
 func TestDailyRoutine(t *testing.T) {
 	t.Run("Init test", func(t *testing.T) {
 
 		err := DailyRoutine("/tmp/human_api_config.json")
-		if err != nil{
+		if err != nil {
 			t.Fatalf("%v", err)
 		}
-	}) 
+	})
 }
