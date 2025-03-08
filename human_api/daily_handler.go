@@ -71,7 +71,7 @@ func ParseAPI() {
 }
 
 func ConvertDailyJsonToHR(src_file_path, dst_file_path string) (reports []WorkerDailyReport, err error) {
-	log.Printf("Called with src '%s' and dst '%s'", src_file_path, dst_file_path)
+	log.Printf("ConvertDailyJsonToHR Called with src '%s' and dst '%s'", src_file_path, dst_file_path)
 
 	data, err := os.ReadFile(src_file_path)
 	if err != nil {
@@ -89,7 +89,7 @@ func ConvertDailyJsonToHR(src_file_path, dst_file_path string) (reports []Worker
 }
 
 func WriteDailyToHRFile(reports []WorkerDailyReport, dst_file_path string) (bool, error) {
-	log.Printf("Writing reports to '%s'", dst_file_path)
+	log.Printf("Writing %d reports to '%s'", len(reports), dst_file_path)
 	worker_delim := fmt.Sprintf("%sH_ReportWorkerID%s", delim, delim)
 	file, err := os.OpenFile(dst_file_path, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {

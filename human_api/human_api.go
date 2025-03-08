@@ -15,17 +15,33 @@ import (
 )
 
 type Configuration struct {
-	SprintName             string `json:"sprint_name"`
-	ReportsDirPath         string `json:"reports_dir_path"`
-	WorkerId               string `json:"worker_id"`
-	AzureDevopsKey         string `json:"azure_devops_key"`
-	AzureDevopsCompanyName string `json:"azure_devops_company"`
+	SprintName                       string `json:"SprintName"`
+	ReportsDirPath                   string `json:"ReportsDirPath"`
+	WorkerId                         string `json:"WorkerId"`
+	AzureDevopsConfigurationFilePath string `json:"AzureDevopsConfigurationFilePath"`
+}
+
+type Wobject struct{
+	Id string `json:"Id"`
+	Title string `json:"Title"`
+	Description string `json:"Description"`
+	LeftTime int `json:"LeftTime"`
+	InvestedTime int `json:"InvestedTime"`
+	WorkerID string `json:"WorkerID"`
+	ChildrenIDs []string `json:"ChildrenIDs"`
+	ParentID string `json:"ParentID"`
 }
 
 const preReportFileName = "pre_report.json"
 const inputFileName = "input.hapi"
 const baseFileName = "base.hapi"
 const postReportFileName = "post_report.json"
+
+func check(e error) {
+	if e != nil {
+		panic(e)
+	}
+}
 
 func DailyRoutine(configFilePath string) error {
 	/*
@@ -38,21 +54,35 @@ func DailyRoutine(configFilePath string) error {
 		}
 
 	*/
-
+	fmt.Println("starting daily routine")
 	config, err := loadConfiguration(configFilePath)
 	if err != nil {
 		log.Printf("Failed with error: %v\n", err)
 		return err
 	}
+	fmt.Println("Loaded config")
 
 	now := time.Now()
-	dateDirName := now.Format("02-21")
+	dateDirName := now.Format("2006_01_02")
 
 	dateDirPath := filepath.Join(config.ReportsDirPath, config.SprintName, dateDirName)
-	err = os.MkdirAll(filepath.Dir(dateDirPath), 0755)
+	fmt.Println("Generated new directory path: " + dateDirPath)
+
+	curDir, err := os.Getwd()
+	check(err)
+	fmt.Printf("%v", curDir)
+
+	os.Chdir(filepath.Join(config.ReportsDirPath, config.SprintName))
+
+	//err = os.MkdirAll(filepath.Dir(dateDirPath), 0755)
+	err = os.MkdirAll(dateDirName, 0755)
 	if err != nil {
+		fmt.Printf("was not able to create '%v'", dateDirPath)
 		return err
 	}
+	os.Chdir(curDir)
+
+	fmt.Println("Created new directory path: " + dateDirPath)
 
 	preReportFilePath := filepath.Join(dateDirPath, preReportFileName)
 	inputFilePath := filepath.Join(dateDirPath, inputFileName)
@@ -63,16 +93,20 @@ func DailyRoutine(configFilePath string) error {
 		return fmt.Errorf("post report file exists. The routine finished: %v", dateDirPath)
 	}
 
-	azure_devops_config := azure_devops_api.Configuration{PersonalAccessToken: config.AzureDevopsKey, OrganizationName: config.AzureDevopsCompanyName}
+	azure_devops_config, err := azure_devops_api.LoadConfig(config.AzureDevopsConfigurationFilePath)
+	if err != nil {
+		return err
+	}
+	log.Printf("inputFilePath: %v", inputFilePath)
 	if !checkFileExists(inputFilePath) {
-		return DailyRoutineExtract(azure_devops_config, preReportFilePath, inputFilePath, baseFilePath, postReportFilePath)
+		return DailyRoutineExtract(config, azure_devops_config, preReportFilePath, inputFilePath, baseFilePath, postReportFilePath)
 	}
 
 	return DailyRoutineSubmit(azure_devops_config, preReportFilePath, inputFilePath, baseFilePath, postReportFilePath)
 
 }
 
-func DailyRoutineExtract(config azure_devops_api.Configuration, preReportFilePath, inputFilePath, baseFilePath, postReportFilePath string) (err error) {
+func DailyRoutineExtract(config Configuration, azureDevopsConfig azure_devops_api.Configuration, preReportFilePath, inputFilePath, baseFilePath, postReportFilePath string) (err error) {
 	if !checkFileExists(preReportFilePath) {
 		if checkFileExists(inputFilePath) {
 			return fmt.Errorf("pre report file does not exist. Input file exists '%v'", inputFilePath)
@@ -80,11 +114,16 @@ func DailyRoutineExtract(config azure_devops_api.Configuration, preReportFilePat
 		if checkFileExists(baseFilePath) {
 			return fmt.Errorf("pre report file does not exist. Base file exists '%v'", baseFilePath)
 		}
-		DownloadAllWits(config, preReportFilePath)
+		DownloadAllWits(azureDevopsConfig, preReportFilePath)
 	}
 
 	if !checkFileExists(inputFilePath) {
-		ConvertDailyJsonToHR(preReportFilePath, baseFilePath)
+		
+		dailyJSONFilePath, err := GenerateDailyRepprt(config, preReportFilePath)
+		check(err)
+		_, err = ConvertDailyJsonToHR(dailyJSONFilePath, baseFilePath)
+		check(err)
+		
 		err = copyFile(baseFilePath, inputFilePath)
 		if err != nil {
 			fmt.Println("Error copying file:", err)
@@ -107,6 +146,26 @@ func DailyRoutineExtract(config azure_devops_api.Configuration, preReportFilePat
 	return nil
 }
 
+func GenerateDailyRepprt(config Configuration, statusFilePath string) (dstFilePath string, err error) {
+	wobjects, err := ConvertAzureDevopsStatusToWobjects(statusFilePath)
+	check(err)
+	reportFilePath, err := GenerateDailyReport(config, wobjects)
+	log.Printf("%v", reportFilePath)
+	return reportFilePath, err
+	//WorkerDailyReport{}
+}
+
+func GenerateDailyReport(config Configuration, wobjects []Wobject) (reportFilePath string, err error){
+log.Printf("%v", wobjects)
+return reportFilePath, nil
+}
+
+func ConvertAzureDevopsStatusToWobjects(filePath string) (wobjects []Wobject, err error){
+	log.Printf("%v", filePath)
+	return wobjects, nil
+	} 
+	
+
 func DailyRoutineSubmit(config azure_devops_api.Configuration, preReportFilePath, inputFilePath, baseFilePath, postReportFilePath string) (err error) {
 	if !checkFileExists(preReportFilePath) ||
 		!checkFileExists(inputFilePath) ||
@@ -128,17 +187,6 @@ func DailyRoutineSubmit(config azure_devops_api.Configuration, preReportFilePath
 }
 
 func loadConfiguration(filePath string) (config Configuration, err error) {
-	config = Configuration{SprintName: "",
-		ReportsDirPath:         "",
-		WorkerId:               "",
-		AzureDevopsKey:         "",
-		AzureDevopsCompanyName: ""}
-
-	filePath, err = filepath.Abs(filePath)
-	if err != nil {
-		return config, err
-	}
-
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return config, err
@@ -150,7 +198,6 @@ func loadConfiguration(filePath string) (config Configuration, err error) {
 	}
 
 	return config, nil
-
 }
 
 func DownloadAllWits(config azure_devops_api.Configuration, dstFilePath string) (err error) {
@@ -162,7 +209,7 @@ func DownloadAllWits(config azure_devops_api.Configuration, dstFilePath string) 
 // Return True if exists, False if not or fails on error.
 func checkFileExists(path string) (exists bool) {
 	_, err := os.Stat(path)
-	if err != nil {
+	if err == nil {
 		return true
 	} else if os.IsNotExist(err) {
 		return false

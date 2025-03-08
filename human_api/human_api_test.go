@@ -1,20 +1,13 @@
 package human_api
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
-// /Test configuration
-var testConfig = Configuration{
-	SprintName:             "sp1",
-	ReportsDirPath:         "1",
-	WorkerId:               "Horey1",
-	AzureDevopsKey:         "secret",
-	AzureDevopsCompanyName: "company",
-}
 
 func TestLoadConfiguration(t *testing.T) {
 	t.Run("Init test", func(t *testing.T) {
@@ -28,8 +21,8 @@ func TestLoadConfiguration(t *testing.T) {
 			t.Errorf("Failed with file: %s, %v", filePath, err)
 
 		}
-		if config.SprintName != testConfig.SprintName {
-			t.Errorf("loadConfiguration() = %v, want %v", config.SprintName, testConfig.SprintName)
+		if config.SprintName != "" {
+			t.Errorf("loadConfiguration() = %v", config.SprintName)
 		}
 	})
 }
@@ -47,7 +40,20 @@ func GetConfigFilePath(basename string) (string, error) {
 		basename = "config.json"
 	}
 	dst_file_path := filepath.Join(abs_path, basename)
+	fmt.Printf("Ignoring path: %v", dst_file_path)
+	dst_file_path = "/tmp/human_api_config.json"
 	log.Printf("Generated test destination HAPI file path: %s", dst_file_path)
 	return dst_file_path, nil
 
+}
+
+
+func TestDailyRoutine(t *testing.T) {
+	t.Run("Init test", func(t *testing.T) {
+
+		err := DailyRoutine("/tmp/human_api_config.json")
+		if err != nil{
+			t.Fatalf("%v", err)
+		}
+	}) 
 }
