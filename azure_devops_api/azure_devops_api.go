@@ -463,3 +463,16 @@ func GetWorkItemsBySlice(config Configuration, ctx context.Context, WitIds []int
 	ch <- &retWorkItems
 	return nil
 }
+
+func ReadWitsFromFile(filePath string)(wits []WorkItem, err error){
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(data, &wits)
+	if err != nil {
+		return nil, err
+	}
+	return wits, nil
+}

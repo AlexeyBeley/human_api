@@ -1,0 +1,126 @@
+[
+    {
+        "url": "https://dev.azure.com/firm-name/f61bf228-f2e1-487e-bebc-123456789100/_apis/wit/workItems/100000",
+        "_links": {
+            "fields": {
+                "href": "https://dev.azure.com/firm-name/f61bf228-f2e1-487e-bebc-123456789100/_apis/wit/fields"
+            },
+            "html": {
+                "href": "https://dev.azure.com/firm-name/f61bf228-f2e1-487e-bebc-123456789100/_workitems/edit/100000"
+            },
+            "self": {
+                "href": "https://dev.azure.com/firm-name/f61bf228-f2e1-487e-bebc-123456789100/_apis/wit/workItems/100000"
+            },
+            "workItemComments": {
+                "href": "https://dev.azure.com/firm-name/f61bf228-f2e1-487e-bebc-123456789100/_apis/wit/workItems/100000/comments"
+            },
+            "workItemRevisions": {
+                "href": "https://dev.azure.com/firm-name/f61bf228-f2e1-487e-bebc-123456789100/_apis/wit/workItems/100000/revisions"
+            },
+            "workItemType": {
+                "href": "https://dev.azure.com/firm-name/f61bf228-f2e1-487e-bebc-123456789100/_apis/wit/workItemTypes/Task"
+            },
+            "workItemUpdates": {
+                "href": "https://dev.azure.com/firm-name/f61bf228-f2e1-487e-bebc-123456789100/_apis/wit/workItems/100000/updates"
+            }
+        },
+        "fields": {
+            "Custom.TicketClassification": "Custom.TicketClassification",
+            "Microsoft.VSTS.Common.Priority": 2,
+            "Microsoft.VSTS.Common.StateChangeDate": "2023-07-06T08:03:13.597Z",
+            "System.AreaId": 100000,
+            "System.AreaLevel1": "firm-name",
+            "System.AreaLevel2": "Dev",
+            "System.AreaLevel3": "TeamA",
+            "System.AreaLevel4": "SubTeamA",
+            "System.AreaLevel5": "SubSubteamA",
+            "System.AreaPath": "firm-name\\Dev\\TeamA\\SubTeamA\\SubSubteamA",
+            "System.AssignedTo": {
+                "_links": {
+                    "avatar": {
+                        "href": "https://dev.azure.com/firm-name/_apis/GraphProfile/MemberAvatars/aad.Mjk0YzNhOTItNjRmZC03YmU1LWIyMGMtZTAz123456789100"
+                    }
+                },
+                "descriptor": "aad.Mjk0YzNhOTItNjRmZC03YmU1LWIyMGMtZTAz123456789100",
+                "displayName": "Horey Horey",
+                "id": "294c3a92-64fd-6be5-b20c-123456789100",
+                "imageUrl": "https://dev.azure.com/firm-name/_apis/GraphProfile/MemberAvatars/aad.Mjk0YzNhOTItNjRmZC03YmU1LWIyMGMtZTAz123456789100",
+                "uniqueName": "Horey.Horey@firm-name.Com",
+                "url": "https://spsprodweu3.vssps.visualstudio.com/Af0879afe-36f5-45dd-9720-123456789100/_apis/Identities/294c3a92-64fd-6be5-b20c-123456789100"
+            },
+            "System.AuthorizedAs": {
+                "_links": {
+                    "avatar": {
+                        "href": "https://dev.azure.com/firm-name/_apis/GraphProfile/MemberAvatars/aad.YTBmZjEzZDUtZWFhNC03M2Q5LThhOTAt1234567890098765"
+                    }
+                },
+                "descriptor": "aad.YTBmZjEzZDUtZWFhNC03M2Q5LThhOTAt1234567890098765",
+                "displayName": "Horey Horey",
+                "id": "a0ff13d5-eaa4-63d9-8a90-123456789100",
+                "imageUrl": "https://dev.azure.com/firm-name/_apis/GraphProfile/MemberAvatars/aad.YTBmZjEzZDUtZWFhNC03M2Q5LThhOTAt1234567890098765",
+                "uniqueName": "horey@firm-name.Com",
+                "url": "https://spsprodweu3.vssps.visualstudio.com/Af0879afe-36f5-45dd-9720-123456789100/_apis/Identities/a0ff13d5-eaa4-63d9-8a90-123456789100"
+            },
+            "System.AuthorizedDate": "2025-01-28T16:57:36.407Z",
+            "System.ChangedBy": {
+                "_links": {
+                    "avatar": {
+                        "href": "https://dev.azure.com/firm-name/_apis/GraphProfile/MemberAvatars/aad.YTBmZjEzZDUtZWFhNC03M2Q5LThhOTAt1234567890098765"
+                    }
+                },
+                "descriptor": "aad.YTBmZjEzZDUtZWFhNC03M2Q5LThhOTAt1234567890098765",
+                "displayName": "Horey Horey",
+                "id": "a0ff13d5-eaa4-63d9-8a90-123456789100",
+                "imageUrl": "https://dev.azure.com/firm-name/_apis/GraphProfile/MemberAvatars/aad.YTBmZjEzZDUtZWFhNC03M2Q5LThhOTAt1234567890098765",
+                "uniqueName": "Horey.Horey@firm-name.Com",
+                "url": "https://spsprodweu3.vssps.visualstudio.com/Af0879afe-36f5-45dd-9720-123456789100/_apis/Identities/a0ff13d5-eaa4-63d9-8a90-123456789100"
+            },
+            "System.ChangedDate": "2025-01-28T16:57:36.407Z",
+            "System.CommentCount": 0,
+            "System.CreatedBy": {
+                "_links": {
+                    "avatar": {
+                        "href": "https://dev.azure.com/firm-name/_apis/GraphProfile/MemberAvatars/aad.NDY4Y2JhZGItNGI1Zi03NmI2LTg5MzktZj12345678910987"
+                    }
+                },
+                "descriptor": "aad.NDY4Y2JhZGItNGI1Zi03NmI2LTg5MzktZj12345678910987",
+                "displayName": "Horey Horey",
+                "id": "7301aceb-23c2-6a01-9c4d-123456789100",
+                "imageUrl": "https://dev.azure.com/firm-name/_apis/GraphProfile/MemberAvatars/aad.NDY4Y2JhZGItNGI1Zi03NmI2LTg5MzktZj12345678910987",
+                "inactive": true,
+                "uniqueName": "OIDCONFLICT_UpnReuse_7301aceb-23c2-6a01-9c4d-ae94ea877Horey.Horey@firm-name.com",
+                "url": "https://spsprodweu3.vssps.visualstudio.com/Af0879afe-36f5-45dd-9720-123456789100/_apis/Identities/7301aceb-23c2-6a01-9c4d-123456789100"
+            },
+            "System.CreatedDate": "2023-02-09T08:08:46.78Z",
+            "System.Id": 100000,
+            "System.IterationId": 100001,
+            "System.IterationLevel1": "firm-name",
+            "System.IterationLevel2": "2025",
+            "System.IterationLevel3": "PI2",
+            "System.IterationPath": "firm-name\\2025\\PI2",
+            "System.NodeName": "DBA",
+            "System.Parent": 100002,
+            "System.PersonId": 100003,
+            "System.Reason": "Reactivated",
+            "System.Rev": 4,
+            "System.RevisedDate": "9999-01-01T00:00:00Z",
+            "System.State": "New",
+            "System.TeamProject": "firm-name",
+            "System.Title": "Implement automatic UT",
+            "System.Watermark": 1652945,
+            "System.WorkItemType": "Task"
+        },
+        "id": 100000,
+        "relations": [
+            {
+                "attributes": {
+                    "isLocked": false,
+                    "name": "Parent"
+                },
+                "rel": "System.LinkTypes.Hierarchy-Reverse",
+                "url": "https://dev.azure.com/firm-name/f61bf228-f2e1-487e-bebc-123456789100/_apis/wit/workItems/100001"
+            }
+        ],
+        "rev": 4
+    }
+]

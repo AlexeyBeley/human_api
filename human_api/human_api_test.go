@@ -55,3 +55,60 @@ func TestDailyRoutine(t *testing.T) {
 		}
 	})
 }
+
+func test_check(t *testing.T, err error){
+	if err != nil{
+		t.Errorf("%v", err)
+	}
+}
+
+func TestGenerateDailyReportFromWobjects(t *testing.T) {
+	t.Run("Init test", func(t *testing.T) {
+		filePath, err := GetConfigFilePath("")
+		if err != nil {
+			t.Errorf("Failed to generate cofig file: %s", err)
+
+		}
+		config, err := loadConfiguration(filePath)
+		if err != nil {
+			t.Errorf("Failed with file: %s, %v", filePath, err)
+
+		}
+		wobjects := []Wobject{{
+			Id:     "123", 
+			Title: "Test Title",
+			Description: "Test Description",
+			LeftTime: 1,
+			InvestedTime: 2,
+			WorkerID: "Horey",
+			ChildrenIDs: []string{"1", "2"},
+			ParentID: "3",
+		},}
+		fileOutputPath := GenerateDailyReportFromWobjects(config, wobjects, "/tmp/base.hapi")
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+		log.Print(fileOutputPath)
+	})
+}
+
+
+func TestConvertAzureDevopsStatusToWobjects(t *testing.T) {
+	t.Run("Init test", func(t *testing.T) {
+		
+		wobjects, err := ConvertAzureDevopsStatusToWobjects("/tmp/wit.json")
+		test_check(t, err)
+		log.Printf("%v", wobjects)
+	})
+}
+
+func TestGenerateDailyReport(t *testing.T) {
+	t.Run("Init test", func(t *testing.T) {
+		filePath, err := GetConfigFilePath("")
+		test_check(t, err)
+		config, err := loadConfiguration(filePath)
+		test_check(t, err)
+		GenerateDailyReport(config, "/tmp/wit.json", "/tmp/base.hapi")
+		test_check(t, err)
+	})
+}
