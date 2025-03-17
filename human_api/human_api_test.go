@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/AlexeyBeley/human_api/azure_devops_api"
 )
 
 func TestLoadConfiguration(t *testing.T) {
@@ -46,18 +48,9 @@ func GetConfigFilePath(basename string) (string, error) {
 
 }
 
-func TestDailyRoutine(t *testing.T) {
-	t.Run("Init test", func(t *testing.T) {
 
-		err := DailyRoutine("/tmp/human_api_config.json")
-		if err != nil {
-			t.Fatalf("%v", err)
-		}
-	})
-}
-
-func test_check(t *testing.T, err error){
-	if err != nil{
+func test_check(t *testing.T, err error) {
+	if err != nil {
 		t.Errorf("%v", err)
 	}
 }
@@ -75,15 +68,15 @@ func TestGenerateDailyReportFromWobjects(t *testing.T) {
 
 		}
 		wobjects := []Wobject{{
-			Id:     "123", 
-			Title: "Test Title",
-			Description: "Test Description",
-			LeftTime: 1,
+			Id:           "123",
+			Title:        "Test Title",
+			Description:  "Test Description",
+			LeftTime:     1,
 			InvestedTime: 2,
-			WorkerID: "Horey",
-			ChildrenIDs: []string{"1", "2"},
-			ParentID: "3",
-		},}
+			WorkerID:     "Horey",
+			ChildrenIDs:  []string{"1", "2"},
+			ParentID:     "3",
+		}}
 		fileOutputPath := GenerateDailyReportFromWobjects(config, wobjects, "/tmp/base.hapi")
 		if err != nil {
 			t.Fatalf("%v", err)
@@ -92,10 +85,9 @@ func TestGenerateDailyReportFromWobjects(t *testing.T) {
 	})
 }
 
-
 func TestConvertAzureDevopsStatusToWobjects(t *testing.T) {
 	t.Run("Init test", func(t *testing.T) {
-		
+
 		wobjects, err := ConvertAzureDevopsStatusToWobjects("/tmp/wit.json")
 		test_check(t, err)
 		log.Printf("%v", wobjects)
@@ -109,6 +101,30 @@ func TestGenerateDailyReport(t *testing.T) {
 		config, err := loadConfiguration(filePath)
 		test_check(t, err)
 		GenerateDailyReport(config, "/tmp/wit.json", "/tmp/base.hapi")
+		test_check(t, err)
+	})
+}
+
+
+func TestDailyRoutine(t *testing.T) {
+	t.Run("Init test", func(t *testing.T) {
+
+		err := DailyRoutine("/tmp/human_api_config.json")
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+	})
+}
+
+func TestDailyRoutineSubmit(t *testing.T) {
+	t.Run("Init test", func(t *testing.T) {
+		filePath, err := GetConfigFilePath("")
+		test_check(t, err)
+		config, err := loadConfiguration(filePath)
+		test_check(t, err)
+		azure_devops_config, err := azure_devops_api.LoadConfig(config.AzureDevopsConfigurationFilePath)
+		test_check(t, err)
+		err = DailyRoutineSubmit(azure_devops_config, "/tmp/input.hapi", "/tmp/base.hapi", "/tmp/postSubmit.json")
 		test_check(t, err)
 	})
 }

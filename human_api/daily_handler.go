@@ -21,6 +21,7 @@ import (
 const delim = "!!=!!"
 
 type WorkerWobjReport struct {
+	//parent and child: {type, id, title}
 	Parent       []string `json:"parent"`
 	Child        []string `json:"child"`
 	Comment      string   `json:"comment"`
@@ -206,9 +207,7 @@ func ReadDailyFromHRFile(src_file_path string) ([]WorkerDailyReport, error) {
 		return []WorkerDailyReport{}, err
 	}
 
-	// todo: replace worker_chunks with structs ready for json
-	//worker_chunks, errors.New("Not implemented")
-	return reports, errors.New("not implemented")
+	return reports, nil
 }
 
 func SplitHapiLinesToWorkerChunks(lines []string) (chunks [][]string, err error) {
@@ -256,10 +255,39 @@ func ConvertWorkerChunkToWorkerDailyReport(chunk []string) (report WorkerDailyRe
 		Closed   []WorkerWobjReport `json:"closed"`
 	*/
 
-	id, new, active, blocked, closed, err := SpitChunkByTypes(chunk)
-	fmt.Printf("%v, %v, %v, %v, %v", id, new, active, blocked, closed)
+	workerId, new, active, blocked, closed, err := SpitChunkByTypes(chunk)
 	if err != nil {
 		return report, err
+	}
+	fmt.Printf("%v, %v, %v, %v, %v", workerId, new, active, blocked, closed)
+	report.WorkerID = workerId
+	/*
+		Parent       []string `json:"parent"`
+		Child        []string `json:"child"`
+		Comment      string   `json:"comment"`
+		InvestedTime int      `json:"invested_time"`
+		LeftTime     int      `json:"left_time"`
+	*/
+
+	for _, newLine := range new {
+		workerWobjReport, err := GenerateWobjectReportFromHapiLine(newLine)
+		check(err)
+		report.New = append(report.New, workerWobjReport)
+	}
+	for _, newLine := range active {
+		workerWobjReport, err := GenerateWobjectReportFromHapiLine(newLine)
+		check(err)
+		report.Active = append(report.Active, workerWobjReport)
+	}
+	for _, newLine := range blocked {
+		workerWobjReport, err := GenerateWobjectReportFromHapiLine(newLine)
+		check(err)
+		report.Blocked = append(report.Blocked, workerWobjReport)
+	}
+	for _, newLine := range closed {
+		workerWobjReport, err := GenerateWobjectReportFromHapiLine(newLine)
+		check(err)
+		report.Closed = append(report.Closed, workerWobjReport)
 	}
 	return report, nil
 }
@@ -280,7 +308,9 @@ func SpitChunkByTypes(lines []string) (id string, new, active, blocked, closed [
 			id = line[len(worker_delim):]
 			continue
 		}
-
+		if line == "" {
+			continue
+		}
 		if line == ">NEW:" || line == ">ACTIVE:" || line == ">BLOCKED:" || line == ">CLOSED:" {
 			aggregator = line
 			continue
@@ -309,57 +339,65 @@ func GenerateWobjectReportFromHapiLine(line string) (WorkerWobjReport, error) {
 	log.Printf("GenerateWobjectReportFromHapiLine called with %s", line)
 	delim_count := strings.Count(line, delim)
 	if delim_count != 2 {
-		return WorkerWobjReport{}, fmt.Errorf("delimiters count expected 2, got %v", delim_count)
+		return WorkerWobjReport{}, fmt.Errorf("delimiters count expected 2, got %v in line '%v' ", delim_count, line)
 	}
 
 	line_parts := strings.Split(line, delim)
-	fmt.Printf("line_parts before parent: '%v'", line_parts)
+	fmt.Printf("line_parts before parent: '%v'\n", line_parts)
 	parent_substring := line_parts[0]
-	parent_substring = strings.TrimPrefix(parent_substring, " ")
-	parent_substring = strings.TrimSuffix(parent_substring, " ")
+	parent_substring = strings.TrimLeft(parent_substring, " ")
+	parent_substring = strings.TrimRight(parent_substring, " ")
 	if !strings.HasPrefix(parent_substring, "[") || !strings.HasSuffix(parent_substring, "]") {
 		return WorkerWobjReport{}, fmt.Errorf("parent format is wrong: '%v'", parent_substring)
 	}
 	parent_substring = parent_substring[1 : len(parent_substring)-1]
 
-	parent, err := GenerateWobjectFromHapiSubLine(parent_substring)
+	parent, err := SplitReportWobjectSubLineToTokens(parent_substring)
 	if err != nil {
 		return WorkerWobjReport{}, err
 	}
-	fmt.Printf("line_parts after parent: '%v'", line_parts)
+	fmt.Printf("line_parts after parent: '%v'\n", line_parts)
 	child_substring := line_parts[1]
-	child_substring = strings.TrimPrefix(child_substring, " ")
-	child_substring = strings.TrimSuffix(child_substring, " ")
+	child_substring = strings.TrimLeft(child_substring, " ")
+	child_substring = strings.TrimRight(child_substring, " ")
 	if !strings.HasPrefix(child_substring, "->") {
 		return WorkerWobjReport{}, fmt.Errorf("child format is wrong: '%v'", child_substring)
 	}
 	child_substring = child_substring[2:]
-	child, err := GenerateWobjectFromHapiSubLine(child_substring)
+	child, err := SplitReportWobjectSubLineToTokens(child_substring)
 	if err != nil {
 		return WorkerWobjReport{}, err
 	}
 
-	actions := strings.TrimPrefix(line_parts[2], " ")
+	actions := strings.TrimLeft(line_parts[2], " ")
 	if !strings.HasPrefix(actions, "Actions:") {
 		return WorkerWobjReport{}, fmt.Errorf("wrong format, missing 'Actions:' in suffix: '%v'", actions)
 	}
 	actions = actions[len("Actions:"):]
-	actions = strings.TrimPrefix(actions, " ")
-	actions = strings.TrimSuffix(actions, " ")
+	actions = strings.TrimLeft(actions, " ")
+	actions = strings.TrimRight(actions, " ")
 
 	lef_time, invested_time, comment, err1 := GenerateWobjectActionsFromHapiSubLine(actions)
 	if err1 != nil {
 		return WorkerWobjReport{}, err1
 	}
 
-	int_invested_time, err := strconv.Atoi(invested_time)
-	if err != nil {
-		return WorkerWobjReport{}, err
+	int_invested_time := -1
+	if invested_time != "" {
+		int_invested_time, err = strconv.Atoi(invested_time)
+		if err != nil {
+			return WorkerWobjReport{}, err
+		}
 	}
-	int_lef_time, err := strconv.Atoi(lef_time)
-	if err != nil {
-		return WorkerWobjReport{}, err
+
+	int_lef_time := -1
+	if lef_time != "" {
+		int_lef_time, err = strconv.Atoi(lef_time)
+		if err != nil {
+			return WorkerWobjReport{}, err
+		}
 	}
+
 	wobj := WorkerWobjReport{
 		Parent:       parent[:],
 		Child:        child[:],
@@ -370,18 +408,24 @@ func GenerateWobjectReportFromHapiLine(line string) (WorkerWobjReport, error) {
 	return wobj, nil
 }
 
-func GenerateWobjectFromHapiSubLine(line string) ([3]string, error) {
+func SplitReportWobjectSubLineToTokens(line string) ([3]string, error) {
 	//"UserStory 1 #test User story
 	// Task 11 #test Task
 	// Task #test Task
 	// UserStory #title
 	// UserStory -1 #title
-	//log.Printf("GenerateWobjectFromHapiSubLine Called with '%s'", line)
-	line = strings.TrimPrefix(line, " ")
+	//log.Printf("SplitReportWobjectSubLineToTokens Called with '%s'", line)
+	line = strings.TrimLeft(line, " ")
 	chunks := strings.Split(line, " ")
 	wobj_type := chunks[0]
-	if wobj_type != "UserStory" && wobj_type != "Task" {
-		return [3]string{"", "", ""}, fmt.Errorf("unsupported type: '%s'", wobj_type)
+
+	// Has no parent.
+	if line == "-1 #-1" {
+		return [3]string{"-1", "-1", "-1"}, nil
+	}
+
+	if wobj_type != "UserStory" && wobj_type != "Task" && wobj_type != "Feature" && wobj_type != "DevOpsSupport" && wobj_type != "EscapedBug" {
+		return [3]string{"", "", ""}, fmt.Errorf("generateWobjectFromHapiSubLine unsupported Wobject type: '%s' in line '%s'", wobj_type, line)
 	}
 
 	wobj_id := ""
@@ -404,16 +448,16 @@ func GenerateWobjectFromHapiSubLine(line string) ([3]string, error) {
 		title += " " + strings.Join(title_left, " ")
 	}
 	//todo:
-	if wobj_type != "UserStory" && wobj_type != "Task" {
-		return [3]string{"", "", ""}, fmt.Errorf("unsupported type: '%s'", wobj_type)
+	if wobj_type != "UserStory" && wobj_type != "Task" && wobj_type != "Feature" && wobj_type != "DevOpsSupport" && wobj_type != "EscapedBug" {
+		return [3]string{"", "", ""}, fmt.Errorf("SplitReportWobjectSubLineToTokens unsupported Wobject type: '%s'", wobj_type)
 	}
 
 	return [3]string{wobj_type, wobj_id, title}, nil
 }
 
 func GenerateWobjectActionsFromHapiSubLine(line string) (lef_time, invested_time, comment string, err error) {
-	line = strings.TrimPrefix(line, " ")
-	line = strings.TrimSuffix(line, " ")
+	line = strings.TrimLeft(line, " ")
+	line = strings.TrimRight(line, " ")
 	if len(line) == 0 {
 		return lef_time, invested_time, comment, nil
 	}
@@ -425,8 +469,8 @@ func GenerateWobjectActionsFromHapiSubLine(line string) (lef_time, invested_time
 	_, err = strconv.Atoi(string(first_char))
 
 	if err == nil {
-		firstPart := strings.TrimPrefix(lst_parts[0], " ")
-		firstPart = strings.TrimSuffix(firstPart, " ")
+		firstPart := strings.TrimLeft(lst_parts[0], " ")
+		firstPart = strings.TrimRight(firstPart, " ")
 		number, errConvert := strconv.Atoi(firstPart)
 		if errConvert != nil {
 			return lef_time, invested_time, comment, errConvert
@@ -439,8 +483,8 @@ func GenerateWobjectActionsFromHapiSubLine(line string) (lef_time, invested_time
 		return lef_time, invested_time, comment, nil
 	}
 
-	firstPart := strings.TrimPrefix(lst_parts[0], " ")
-	firstPart = strings.TrimSuffix(firstPart, " ")
+	firstPart := strings.TrimLeft(lst_parts[0], " ")
+	firstPart = strings.TrimRight(firstPart, " ")
 	first_char = firstPart[0]
 	if first_char == '+' {
 		firstPart = firstPart[1:]
@@ -456,7 +500,7 @@ func GenerateWobjectActionsFromHapiSubLine(line string) (lef_time, invested_time
 		return lef_time, invested_time, comment, nil
 	}
 	comment = strings.Join(lst_parts, ",")
-	comment = strings.TrimSuffix(strings.TrimPrefix(comment, " "), " ")
+	comment = strings.TrimSuffix(strings.TrimLeft(comment, " "), " ")
 
 	return lef_time, invested_time, comment, nil
 }

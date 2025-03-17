@@ -322,7 +322,7 @@ func TestGenerateWobjectReportFromHapiLine(t *testing.T) {
 	})
 }
 
-func TestGenerateWobjectFromHapiSubLine(t *testing.T) {
+func TestSplitReportWobjectSubLineToTokens(t *testing.T) {
 	t.Run("Valid input", func(t *testing.T) {
 		testCases := []struct {
 			inputLine string
@@ -362,12 +362,12 @@ func TestGenerateWobjectFromHapiSubLine(t *testing.T) {
 		}
 
 		for _, testCase := range testCases {
-			got, err := GenerateWobjectFromHapiSubLine(testCase.inputLine)
+			got, err := SplitReportWobjectSubLineToTokens(testCase.inputLine)
 			if err != nil && !testCase.wantErr {
-				t.Errorf("GenerateWobjectFromHapiSubLine() error= %v", err)
+				t.Errorf("SplitReportWobjectSubLineToTokens() error= %v", err)
 			}
 			if !reflect.DeepEqual(got, testCase.want) && !testCase.wantErr {
-				t.Errorf("GenerateWobjectFromHapiSubLine() = %v, want %v", got, testCase.want)
+				t.Errorf("SplitReportWobjectSubLineToTokens() = %v, want %v", got, testCase.want)
 			}
 
 		}

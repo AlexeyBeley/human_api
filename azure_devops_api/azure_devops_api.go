@@ -26,10 +26,6 @@ type Configuration struct {
 	SprintName          string `json:"SprintName"`
 }
 
-type Wobject struct {
-	Id string
-}
-
 type WorkItem struct {
 	ID        int                    `json:"id"`
 	Rev       int                    `json:"rev"`
@@ -288,8 +284,8 @@ func CacheToFile(IterationWorkItems *[]workitemtracking.WorkItem, dstFilePath st
 
 }
 
-func SubmitSprintStatus(config Configuration, wobjects []Wobject) error {
-	return fmt.Errorf("todo: %s, %s", config, wobjects)
+func SubmitSprintStatus(config Configuration, wits []WorkItem) error {
+	return fmt.Errorf("todo: SubmitSprintStatus with %s, %s", config, wits)
 }
 
 func LoadConfig(configFilePath string) (config Configuration, err error) {
@@ -309,7 +305,7 @@ func getWorkItemIDs(config Configuration, ctx context.Context) ([]int, error) {
 
 	client := http.Client{Timeout: 10 * time.Second}
 	requestUrl := "https://dev.azure.com/" + config.OrganizationName + "/" + config.ProjectName + "/_apis/wit/wiql?api-version=7.0"
-	wiqlData := fmt.Sprintf(`{"query": "SELECT [System.Id] FROM WorkItems Where [System.TeamProject] = '%s'"}`, config.ProjectName)
+	wiqlData := fmt.Sprintf(`{"query": "SELECT [System.Id] FROM WorkItems Where [System.TeamProject] = '%s' AND [System.AreaId] = 105521"}`, config.ProjectName)
 	AuthHeaderValue := "Basic " + basicAuth(config.PersonalAccessToken)
 
 	jsonBody := []byte(wiqlData)
@@ -328,6 +324,7 @@ func getWorkItemIDs(config Configuration, ctx context.Context) ([]int, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
+	
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -339,6 +336,7 @@ func getWorkItemIDs(config Configuration, ctx context.Context) ([]int, error) {
 
 	// Decode the JSON response
 	var queryResult witWorkItemQueryResult
+
 	err = json.NewDecoder(resp.Body).Decode(&queryResult)
 	if err != nil {
 		return nil, err
@@ -394,28 +392,48 @@ func DownloadAllWits(config Configuration, dstFilePath string) error {
 	//todo: remove
 	//WitIds = WitIds[:400]
 	//todo: end remove
-
+	BulckSize := 50
 	WitCount := len(WitIds)
-	channelsCount := WitCount / 200
-
-	channels := make([]chan *[]workitemtracking.WorkItem, channelsCount)
-	for i := range channels {
-		channels[i] = make(chan *[]workitemtracking.WorkItem)
+	channelsCount := WitCount / BulckSize
+	if BulckSize * channelsCount < WitCount{
+		channelsCount += 1
 	}
 
-	for i := range channels {
-		WitIdsSlice := WitIds[i*200 : i*200+200]
+	channels := make([]chan *[]workitemtracking.WorkItem, channelsCount)
+	for chanIndex := range channels {
+		channels[chanIndex] = make(chan *[]workitemtracking.WorkItem)
+	}
+	
+	i := 0 
+	for i < WitCount {
+		log.Printf("Entering loop with i: %d\n", i )
+		endIndex := i + BulckSize
+		log.Printf("loop i:%d, endIndex: %d\n", i, endIndex)
+		if i + BulckSize >= WitCount{
+			endIndex = WitCount - 1
+		}
+
+		log.Printf("loop i:%d, endIndex after cahnge: %d\n", i, endIndex)
+		log.Printf("loop i: %d, endIndex:%d, i/BulckSize: %d\n", i, endIndex, i/BulckSize)
+		if i/BulckSize == 8{
+			log.Printf("Problem loop i: %d, endIndex:%d, i/BulckSize: %d\n", i, endIndex, i/BulckSize)
+			
+		}
+		WitIdsSlice := WitIds[i:endIndex]
+		chanIndex := i/BulckSize
 		go func() {
-			GetWorkItemsBySlice(config, ctx, WitIdsSlice, channels[i])
+			GetWorkItemsBySlice(config, ctx, WitIdsSlice, channels[chanIndex])
 		}()
+
+		i += BulckSize
 	}
 
 	//fmt.Printf("queryResult.WorkItems: %v\n", *(.Id)
 	//*[]workitemtracking.WorkItem
 
 	AllWits := []workitemtracking.WorkItem{}
-	for i, ch := range channels {
-		fmt.Printf("fetched from chanel : %d/%d", i, len(channels))
+	for j, ch := range channels {
+		fmt.Printf("fetched from chanel %d out of %d channels\n", j, len(channels))
 		IterationWorkItems := <-ch
 		AllWits = append(AllWits, *IterationWorkItems...)
 
@@ -441,6 +459,7 @@ func GetWorkItemsBySlice(config Configuration, ctx context.Context, WitIds []int
 
 		resp, err := client.Do(req)
 		if err != nil {
+			log.Printf("received error in HTTP clinet request: %v", err)
 			return err
 		}
 		defer resp.Body.Close()
@@ -464,7 +483,7 @@ func GetWorkItemsBySlice(config Configuration, ctx context.Context, WitIds []int
 	return nil
 }
 
-func ReadWitsFromFile(filePath string)(wits []WorkItem, err error){
+func ReadWitsFromFile(filePath string) (wits []WorkItem, err error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
