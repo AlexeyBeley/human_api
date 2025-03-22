@@ -67,14 +67,14 @@ func TestGenerateDailyReportFromWobjects(t *testing.T) {
 			t.Errorf("Failed with file: %s, %v", filePath, err)
 
 		}
-		wobjects := []Wobject{{
+		wobjects := map[string]*Wobject{"123":{
 			Id:           "123",
 			Title:        "Test Title",
 			Description:  "Test Description",
 			LeftTime:     1,
 			InvestedTime: 2,
 			WorkerID:     "Horey",
-			ChildrenIDs:  []string{"1", "2"},
+			ChildrenIDs:  &[]string{"1", "2"},
 			ParentID:     "3",
 		}}
 		fileOutputPath := GenerateDailyReportFromWobjects(config, wobjects, "/tmp/base.hapi")
