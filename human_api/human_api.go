@@ -23,18 +23,18 @@ type Configuration struct {
 }
 
 type Wobject struct {
-	Id           string   `json:"Id"`
-	Title        string   `json:"Title"`
-	Description  string   `json:"Description"`
-	LeftTime     int      `json:"LeftTime"`
-	InvestedTime int      `json:"InvestedTime"`
-	WorkerID     string   `json:"WorkerID"`
+	Id           string    `json:"Id"`
+	Title        string    `json:"Title"`
+	Description  string    `json:"Description"`
+	LeftTime     int       `json:"LeftTime"`
+	InvestedTime int       `json:"InvestedTime"`
+	WorkerID     string    `json:"WorkerID"`
 	ChildrenIDs  *[]string `json:"ChildrenIDs"`
-	ParentID     string   `json:"ParentID"`
-	Priority     int      `json:"Priority"`
-	Status       string   `json:"Status"`
-	Sprint       string   `json:"Sprint"`
-	Type         string   `json:"Type"`
+	ParentID     string    `json:"ParentID"`
+	Priority     int       `json:"Priority"`
+	Status       string    `json:"Status"`
+	Sprint       string    `json:"Sprint"`
+	Type         string    `json:"Type"`
 }
 
 const preReportFileName = "pre_report.json"
@@ -96,7 +96,7 @@ func DailyRoutine(configFilePath string) error {
 	curDir, err := os.Getwd()
 	check(err)
 	fmt.Printf("Current workind dir: %v\n", curDir)
-	
+
 	dateDirFullPath := filepath.Join(config.ReportsDirPath, config.SprintName, dateDirName)
 	err = os.MkdirAll(dateDirFullPath, 0755)
 	if err != nil {
@@ -187,7 +187,6 @@ func GenerateDailyReportFromWobjects(config Configuration, wobjects map[string]*
 	blocked := []WorkerWobjReport{}
 	closed := []WorkerWobjReport{}
 
-
 	reports := []WorkerDailyReport{}
 	var workerID string
 	for wobjid, wobject := range wobjectsRelevant {
@@ -203,7 +202,7 @@ func GenerateDailyReportFromWobjects(config Configuration, wobjects map[string]*
 		}
 
 		parentPointer, childPointer = GenerateParentAndChildFromParentlessWobject(wobject, wobjectsRelevant)
-		
+
 		workerID = wobject.WorkerID
 
 		report := WorkerWobjReport{Parent: []string{parentPointer.Type, parentPointer.Id, parentPointer.Title},
@@ -237,15 +236,16 @@ func GenerateDailyReportFromWobjects(config Configuration, wobjects map[string]*
 	return reportFilePath
 }
 
+// Generate Parent and child for Wobject that has not explicit parent.
+// The wobject can become either Parent from new qobject or a Child with undefind (-1) Parent
 func GenerateParentAndChildFromParentlessWobject(wobject *Wobject, wobjectsRelevant map[string]*Wobject) (parent, child *Wobject) {
-	// For Task/Bug creates default parent "-1"
-	// For other types creats default child "-"
-
 	if wobject.Type == "Task" || wobject.Type == "Bug" {
 		if wobject.ParentID == "" {
 			wobject.ParentID = "-1"
 		}
-
+		if wobjectsRelevant[wobject.ParentID].ChildrenIDs == nil {
+			wobjectsRelevant[wobject.ParentID].ChildrenIDs = new([]string)
+		}
 		*(wobjectsRelevant[wobject.ParentID].ChildrenIDs) = append(*(wobjectsRelevant[wobject.ParentID].ChildrenIDs), wobject.Id)
 		parent = wobjectsRelevant[wobject.ParentID]
 		child = wobject
@@ -278,11 +278,11 @@ func FilterRelevantDailyReportWobjects(config Configuration, wobjects map[string
 			continue
 		}
 		wobjectsRelevantById[wobject.Id] = wobject
-	
+
 		if _, existsInRelevant := wobjectsRelevantById[wobject.ParentID]; !existsInRelevant {
 			if parent, existsInWobjects := wobjects[wobject.ParentID]; existsInWobjects {
-			wobjectsRelevantById[wobject.ParentID] = parent
-		}
+				wobjectsRelevantById[wobject.ParentID] = parent
+			}
 		}
 	}
 
@@ -300,12 +300,12 @@ func ConvertAzureDevopsStatusToWobjects(filePath string) (wobjects map[string]*W
 		check(err)
 		wobjects[wobject.Id] = &wobject
 	}
-	for wobjId, wobject := range wobjects{
-		if wobject.ParentID != "" && wobject.ParentID != "-1"{
+	for wobjId, wobject := range wobjects {
+		if wobject.ParentID != "" && wobject.ParentID != "-1" {
 			parent, ok := wobjects[wobject.ParentID]
-			if !ok{
-			continue
-		}
+			if !ok {
+				continue
+			}
 			*(parent.ChildrenIDs) = append(*(parent.ChildrenIDs), wobjId)
 		}
 	}
@@ -412,7 +412,7 @@ func DailyRoutineSubmit(config azure_devops_api.Configuration, inputFilePath, ba
 	return err
 }
 
-func GetWobjectsFromReportFile(config azure_devops_api.Configuration, filePath string) (map[string]*Wobject) {
+func GetWobjectsFromReportFile(config azure_devops_api.Configuration, filePath string) map[string]*Wobject {
 	inputJsonFilePath := strings.Replace(filepath.Base(filePath), ".hapi", "_hapi.json", 1)
 
 	reports, err := ConvertHRToDailyJson(filePath, inputJsonFilePath)
@@ -454,7 +454,7 @@ func ValidateWobjectsUserInput(baseById map[string]*Wobject, inputWobjects map[s
 		if strings.ContainsAny(wobject.WorkerID, cutset) {
 			errors = append(errors, fmt.Sprintf("wobject WorkerID '%s' contains one of invalid characters: [%s]", wobject.WorkerID, cutset_readable))
 		}
-		if wobject.Id == ""{
+		if wobject.Id == "" {
 			errors = append(errors, fmt.Sprintf("wobject Id is empty'%s'. Expectd replacement with CreatePlease:<Title>", wobject.Title))
 		}
 
@@ -465,9 +465,9 @@ func ValidateWobjectsUserInput(baseById map[string]*Wobject, inputWobjects map[s
 			}
 		}
 		errors = append(errors, ValidateWobjectUserInput(wobject)...)
-		
-		if wobject.Id == "-1"  && len(*wobject.ChildrenIDs) == 0{
-			errors = append(errors, fmt.Sprintf("child wobject is not initialized in input file: %v", wobject))
+
+		if wobject.Id == "-1" && len(*wobject.ChildrenIDs) == 0 {
+			errors = append(errors, fmt.Sprintf("child wobject is -1 in input.json. You forgot to fill it: %v", wobject))
 		}
 	}
 	if len(errors) > 0 {
@@ -486,18 +486,18 @@ func ValidateWobjectUserInput(wobject *Wobject) (errors []string) {
 		if wobject.Type != "Task" && wobject.Type != "Bug" {
 			errors = append(errors, fmt.Sprintf("[%s][%s] - unsupported Wobject Type %s. Use one of ['Task', 'Bug']", wobject.Id, wobject.Title, wobject.Type))
 		}
-		
-		//new Task/Bug 
-	    if strings.HasPrefix(wobject.Id, "CreatePlease:") { 
+
+		//new Task/Bug
+		if strings.HasPrefix(wobject.Id, "CreatePlease:") {
 			if wobject.LeftTime == -1 {
 				errors = append(errors, fmt.Sprintf("[%s][%s] - must provide LeftTime for new %s ", wobject.Id, wobject.Title, wobject.Type))
 			}
 			if wobject.InvestedTime == -1 {
 				errors = append(errors, fmt.Sprintf("[%s][%s] - must provide InvestedTime for new %s ", wobject.Id, wobject.Title, wobject.Type))
 			}
-			
+
 		}
-		
+
 		if wobject.LeftTime == 0 && wobject.Status != "Closed" {
 			errors = append(errors, fmt.Sprintf("[%s][%s] - if LeftTime == 0, Status can not be Closed", wobject.Id, wobject.Title))
 		}
@@ -516,13 +516,12 @@ func FilterChangedWobjects(baseById map[string]*Wobject, inputWobjects map[strin
 		if inputWobject.Id == "" {
 			check(fmt.Errorf("filterning failed on empty wobject Id : %v", inputWobject))
 		}
-		
+
 		//New wobject
 		if strings.HasPrefix(inputWobject.Id, "CreatePlease:") {
 			wobjectsRet = append(wobjectsRet, inputWobject)
 			continue
 		}
-
 
 		baseWobject, ok := baseById[inputWobject.Id]
 		if !ok {
@@ -541,7 +540,7 @@ func FilterChangedWobjects(baseById map[string]*Wobject, inputWobjects map[strin
 	return wobjectsRet
 }
 
-func GenerateWobjectsFromDailyReports(cofig azure_devops_api.Configuration, reports []WorkerDailyReport) (map[string]*Wobject) {
+func GenerateWobjectsFromDailyReports(cofig azure_devops_api.Configuration, reports []WorkerDailyReport) map[string]*Wobject {
 	wobjectById := make(map[string]*Wobject)
 	for _, report := range reports {
 		for _, wobjectReport := range report.New {
@@ -586,7 +585,7 @@ func GenerateWobjectsFromWobjectReport(cofig azure_devops_api.Configuration, wob
 	}
 
 	if value, seenBefore := wobjectById[wobjectReport.Child[1]]; seenBefore {
-		if value.Id == "-1"{
+		if value.Id == "-1" {
 			return
 		}
 		check(fmt.Errorf("reported child wobject ID '%v' already appeared in a report with title %v", value.Id, value.Title))
@@ -599,7 +598,7 @@ func GenerateWobjectsFromWobjectReport(cofig azure_devops_api.Configuration, wob
 	} else {
 		childId = "CreatePlease:" + wobjectReport.Child[2]
 	}
-	
+
 	wobj := Wobject{Id: childId,
 		Title:        wobjectReport.Child[2],
 		WorkerID:     WorkerID,
@@ -617,17 +616,17 @@ func GenerateWobjectsFromWobjectReport(cofig azure_devops_api.Configuration, wob
 	wobjectById[wobj.Id] = &wobj
 }
 
-func GenerateDictsFromWobjects(wobjects []*Wobject) (lstRet [](map[string]string)) {
+func GenerateDictsFromWobjects(wobjects []*Wobject) (lstRet [](*map[string]string)) {
 	for _, wobject := range wobjects {
 		dictRequest := make(map[string]string)
-		
+
 		var err error
 
 		if !strings.HasPrefix(wobject.Id, "CreatePlease:") {
-		     _, err := strconv.Atoi(wobject.Id)
+			_, err := strconv.Atoi(wobject.Id)
 			check(err)
 		}
-		
+
 		if !strings.HasPrefix(wobject.ParentID, "CreatePlease:") {
 			_, err = strconv.Atoi(wobject.ParentID)
 			check_ng(fmt.Sprintf("wobject [%s] [%s] ParentID:", wobject.Id, wobject.Title), err)
@@ -645,8 +644,8 @@ func GenerateDictsFromWobjects(wobjects []*Wobject) (lstRet [](map[string]string
 		dictRequest["Sprint"] = wobject.Sprint
 		dictRequest["Status"] = wobject.Status
 		dictRequest["Type"] = wobject.Type
-		
-		lstRet = append(lstRet, dictRequest)
+
+		lstRet = append(lstRet, &dictRequest)
 
 	}
 
@@ -658,7 +657,7 @@ func GuessPriorityForRequestDict(wobject Wobject) string {
 		return strconv.Itoa(wobject.Priority)
 	}
 
-	if !strings.HasPrefix(wobject.Id, "CreatePlease:"){
+	if !strings.HasPrefix(wobject.Id, "CreatePlease:") {
 		return "-1"
 	}
 

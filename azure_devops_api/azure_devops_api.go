@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/google/uuid"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7"
@@ -28,6 +29,7 @@ type Configuration struct {
 	ProjectName         string `json:"ProjectName"`
 	SprintName          string `json:"SprintName"`
 	AreaPath            string `json:"AreaPath"`
+	SystemAreaID        string `json:"SystemAreaID"`
 }
 
 type WorkItem struct {
@@ -215,7 +217,6 @@ func GetTeamUuid(config Configuration) (id uuid.UUID, err error) {
 	return id, err
 }
 
-
 func GetIteration(config Configuration) (iteration work.TeamSettingsIteration, err error) {
 	WorkClient, ctx, err := GetWorkClientAndCtx(config)
 
@@ -235,7 +236,6 @@ func GetIteration(config Configuration) (iteration work.TeamSettingsIteration, e
 	}
 	return iteration, fmt.Errorf("was not able to find Iteration by name: %s", config.SprintName)
 }
-
 
 func CallGetWorkItems(config Configuration, ctx context.Context, WorkItemTrackingClient workitemtracking.Client, WitIds []int, ch chan *[]workitemtracking.WorkItem) (err error) {
 	Fields := []string{"System.State", "System.Id", "System.CreatedBy", "System.CreatedDate"}
@@ -296,12 +296,9 @@ func LoadConfig(configFilePath string) (config Configuration, err error) {
 }
 
 func getWorkItemIDs(config Configuration, ctx context.Context) ([]int, error) {
-
-	systemAreaId := "todo: fetch before the request"
-	panic("todo:")
 	client := http.Client{Timeout: 10 * time.Second}
 	requestUrl := "https://dev.azure.com/" + config.OrganizationName + "/" + config.ProjectName + "/_apis/wit/wiql?api-version=7.0"
-	wiqlData := fmt.Sprintf(`{"query": "SELECT [System.Id] FROM WorkItems Where [System.TeamProject] = '%s' AND [System.AreaId] = %s"}`, config.ProjectName, systemAreaId)
+	wiqlData := fmt.Sprintf(`{"query": "SELECT [System.Id] FROM WorkItems Where [System.TeamProject] = '%s' AND [System.AreaId] = %s"}`, config.ProjectName, config.SystemAreaID)
 	AuthHeaderValue := "Basic " + basicAuth(config.PersonalAccessToken)
 
 	jsonBody := []byte(wiqlData)
@@ -340,6 +337,10 @@ func getWorkItemIDs(config Configuration, ctx context.Context) ([]int, error) {
 
 	// Extract work item IDs
 	lenIds := len(*queryResult.WorkItems)
+	if lenIds == 0 {
+		return []int{}, fmt.Errorf("was not able to fetch Work Item Ids, check the quert: %v", wiqlData)
+	}
+
 	//allIDs := [lenIds]int[]{}
 	var allIDs [20000]int
 	if queryResult.WorkItems != nil {
@@ -383,7 +384,7 @@ func DownloadAllWits(config Configuration, dstFilePath string) error {
 	// Fetch work item IDs in batches using WIQL
 	WitIds, err := getWorkItemIDs(config, ctx)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	//todo: remove
@@ -493,46 +494,79 @@ func ReadWitsFromFile(filePath string) (wits []WorkItem, err error) {
 	return wits, nil
 }
 
-func SubmitSprintStatus(config Configuration, requestDicts []map[string]string) error {
+func SubmitSprintStatus(config Configuration, requestDicts []*(map[string]string)) error {
 	// Provision parents
 	// todo: Clean new identical parents by title
 	for _, requestDict := range requestDicts {
-		if requestDict["ChildrenIDs"] == "" {
+		if (*requestDict)["ChildrenIDs"] != "" || (*requestDict)["ParentID"] == "-1" {
+			continue
+		}
+		if _, err := strconv.Atoi((*requestDict)["ParentID"]); err != nil {
+			return err
+		}
+	}
+	workerIds := make(map[string]string)
+
+	for _, requestDict := range requestDicts {
+
+		strWorkerValue, ok := workerIds[(*requestDict)["WorkerID"]]
+		if !ok {
+			strWorker, strWorkerOK := (*requestDict)["WorkerID"]
+			if !strWorkerOK {
+				return fmt.Errorf("no Key WorkerID in %v", *requestDict)
+			}
+			if strWorker == "" {
+				return fmt.Errorf("no WorkerID provided in %v", *requestDict)
+			}
+			workerIds[(*requestDict)["WorkerID"]] = getWorker(strWorker)
+			strWorkerValue = workerIds[(*requestDict)["WorkerID"]]
+		}
+		(*requestDict)["WorkerID"] = strWorkerValue
+
+		if (*requestDict)["ChildrenIDs"] == "" {
 			continue
 		}
 		err := ProvisionWitFromDict(config, requestDict)
 		if err != nil {
-			return nil
+			return err
 		}
 	}
 
 	for _, requestDict := range requestDicts {
-		if requestDict["ChildrenIDs"] != "" {
+		if (*requestDict)["ChildrenIDs"] != "" {
 			continue
 		}
 
 		err := ProvisionWitFromDict(config, requestDict)
 		if err != nil {
-			return nil
+			return err
+		}
+		if (*requestDict)["ParentID"] == "-1"{
+			continue
+		}
+
+		err = setWitParentFromWit(config, requestDict)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func ProvisionWitFromDict(config Configuration, requestDict map[string]string) error {
+func ProvisionWitFromDict(config Configuration, requestDict *(map[string]string)) error {
 	// provision_work_item_from_dict
 
-	if requestDict["Id"] == "-1" {
+	if (*requestDict)["Id"] == "-1" {
 		return nil
 	}
 
-	if strings.HasPrefix(requestDict["Id"], "CreatePlease:") {
+	if strings.HasPrefix((*requestDict)["Id"], "CreatePlease:") {
 		return CreateWit(config, requestDict)
 	}
-	return UpdateWit(config, requestDict)
+	return UpdateWit(config, (*requestDict))
 }
 
-func CreateWit(config Configuration, requestDict map[string]string) error {
+func CreateWit(config Configuration, requestDict *(map[string]string)) error {
 	req, err := GenerateCreateWitRequest(config, requestDict)
 	if err != nil {
 		log.Printf("received error in Generate Create Wit Request: %v", err)
@@ -559,11 +593,12 @@ func CreateWit(config Configuration, requestDict map[string]string) error {
 	if err != nil {
 		return err
 	}
+	(*requestDict)["Id"] = strconv.Itoa(*wit.Id)
 
 	return nil
 }
 
-func GenerateCreateWitRequest(config Configuration, requestDict map[string]string) (*http.Request, error) {
+func GenerateCreateWitRequest(config Configuration, requestDict *(map[string]string)) (*http.Request, error) {
 	/*
 		dictRequest["Id"] = wobject.Id
 		dictRequest["ParentID"] = wobject.ParentID
@@ -578,12 +613,12 @@ func GenerateCreateWitRequest(config Configuration, requestDict map[string]strin
 		dictRequest["Status"] = wobject.Status
 		dictRequest["Type"] = wobject.Type
 	*/
-	
-	if config.AreaPath == ""{
+
+	if config.AreaPath == "" {
 		return nil, fmt.Errorf("error config.AreaPath is empty, %v", config)
 	}
 
-	if value, err := strconv.Atoi(requestDict["Priority"]); err != nil || value== -1 {
+	if value, err := strconv.Atoi((*requestDict)["Priority"]); err != nil || value == -1 {
 		return nil, fmt.Errorf("creating Wobject has malformed Prioriy: %v, %v", value, err)
 	}
 
@@ -592,17 +627,12 @@ func GenerateCreateWitRequest(config Configuration, requestDict map[string]strin
 
 	var witUrlType string
 	switch {
-	case requestDict["Type"] == "UserStory":
+	case (*requestDict)["Type"] == "UserStory":
 		witUrlType = "$User%20Story"
-	case requestDict["Type"] == "Task" || requestDict["Type"] == "Bug":
-		witUrlType = "$" + requestDict["Type"]
+	case (*requestDict)["Type"] == "Task" || (*requestDict)["Type"] == "Bug":
+		witUrlType = "$" + (*requestDict)["Type"]
 	default:
-		return nil, fmt.Errorf("unknown WIT Type: %s", requestDict["Type"])
-	}
-
-	postData, err := json.Marshal(postList)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling JSON: %v", err)
+		return nil, fmt.Errorf("unknown WIT Type: %s", (*requestDict)["Type"])
 	}
 
 	postList = append(postList, map[string]string{
@@ -614,23 +644,17 @@ func GenerateCreateWitRequest(config Configuration, requestDict map[string]strin
 	postList = append(postList, map[string]string{
 		"op":    "add",
 		"path":  "/fields/System.Title",
-		"value": requestDict["Title"],
+		"value": (*requestDict)["Title"],
 	})
 
 	postList = append(postList, map[string]string{
 		"op":    "add",
 		"path":  "/fields/System.Description",
-		"value": requestDict["Description"],
-	})
-
-	postList = append(postList, map[string]string{
-		"op":    "add",
-		"path":  "/fields/Microsoft.VSTS.Common.Priority",
-		"value": requestDict["Priority"],
+		"value": (*requestDict)["Description"],
 	})
 
 	iteration, err := GetIteration(config)
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 
@@ -640,47 +664,57 @@ func GenerateCreateWitRequest(config Configuration, requestDict map[string]strin
 		"value": *iteration.Path,
 	})
 
+	postList = append(postList, map[string]string{
+		"op":    "add",
+		"path":  "/fields/Microsoft.VSTS.Common.Priority",
+		"value": (*requestDict)["Priority"],
+	})
+
 	err = fillCreateWitRequestTimes(&postList, requestDict)
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
-	
+
 	postList = append(postList, map[string]string{
 		"op":    "add",
 		"path":  "/fields/System.AssignedTo",
-		"value": requestDict["WorkerID"],
+		"value": (*requestDict)["WorkerID"],
 	})
-
 
 	fmt.Printf("Creating new Azure Devops WorkITem  : %v\n", requestDict)
 
+	postData, err := json.Marshal(postList)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling JSON: %v", err)
+	}
 	req, err := createRequest(config, ctx, fmt.Sprintf("wit/workitems/%s?api-version=7.0", witUrlType), http.MethodPost, bytes.NewBuffer(postData), "application/json-patch+json")
+
 	return req, err
 }
 
-func fillCreateWitRequestTimes(postList *[]map[string]string, requestDict map[string]string) (error) {
-	if requestDict["LeftTime"] == "-1"{
+func fillCreateWitRequestTimes(postList *[]map[string]string, requestDict *map[string]string) error {
+	if (*requestDict)["LeftTime"] == "-1" {
 		return nil
 	}
 
 	*postList = append(*postList, map[string]string{
 		"op":    "add",
 		"path":  "/fields/Microsoft.VSTS.Scheduling.RemainingWork",
-		"value": requestDict["LeftTime"],
+		"value": (*requestDict)["LeftTime"],
 	})
 
 	*postList = append(*postList, map[string]string{
 		"op":    "add",
 		"path":  "/fields/Microsoft.VSTS.Scheduling.CompletedWork",
-		"value": requestDict["InvestedTime"],
+		"value": (*requestDict)["InvestedTime"],
 	})
 
-	intLeftTime, err := strconv.Atoi(requestDict["LeftTime"])
+	intLeftTime, err := strconv.Atoi((*requestDict)["LeftTime"])
 	if err != nil {
 		return err
 	}
-	
-	intInvestedTime, err := strconv.Atoi(requestDict["InvestedTime"])	
+
+	intInvestedTime, err := strconv.Atoi((*requestDict)["InvestedTime"])
 	if err != nil {
 		return err
 	}
@@ -701,6 +735,48 @@ func UpdateWit(config Configuration, requestDict map[string]string) error {
 		log.Printf("received error in Generate Create Wit Request: %v", err)
 		return err
 	}
+	return Patch(req)
+
+}
+
+func setWitParentFromWit(config Configuration, requestDict *map[string]string) error {
+	/*
+	            logger.info(f"Removing parent: {wit_id}")
+            request_remove_parent = [{"op": "remove", "path": "/relations/0"}]
+            self.patch(url, request_remove_parent)
+
+            logger.info(f"Adding parent: {wit_id}")
+            return self.patch(url, request_data)
+	*/
+	ctx := context.Background()
+	postList := []map[string]any{}
+
+	 postList = append(postList, map[string]any{
+		"op": "add",
+		"path": "/relations/-",
+		"value": map[string]string{
+			"rel": "System.LinkTypes.Hierarchy-Reverse",
+			"url": fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/wit/workItems/%s", config.OrganizationName, config.ProjectName, (*requestDict)["ParentID"]),
+		},
+	})
+
+	postData, err := json.Marshal(postList)
+	if err != nil {
+		return fmt.Errorf("error marshaling JSON: %v", err)
+	}
+	fmt.Printf("Updating Azure Devops WorkITem  : %v\n", requestDict)
+
+	req, err := createRequest(config, ctx, fmt.Sprintf("wit/workitems/%s?api-version=7.0", (*requestDict)["Id"]), http.MethodPatch, bytes.NewBuffer(postData), "application/json-patch+json")
+
+	if err != nil {
+		log.Printf("received error in Generate Create Wit Request: %v", err)
+		return err
+	}
+	return Patch(req)
+
+}
+func Patch(req *http.Request) error {
+
 	client := getClient()
 
 	resp, err := client.Do(req)
@@ -716,7 +792,7 @@ func UpdateWit(config Configuration, requestDict map[string]string) error {
 	}
 
 	// Decode the JSON response
-	//var queryResult witWorkItemQueryResult
+	// var queryResult witWorkItemQueryResult
 	var wit workitemtracking.WorkItem
 	err = json.NewDecoder(resp.Body).Decode(&wit)
 	if err != nil {
@@ -741,8 +817,8 @@ func GenerateUpdateWitRequest(config Configuration, requestDict map[string]strin
 		dictRequest["Status"] = wobject.Status
 		dictRequest["Type"] = wobject.Type
 	*/
-	
-	if config.AreaPath == ""{
+
+	if config.AreaPath == "" {
 		return nil, fmt.Errorf("error config.AreaPath is empty, %v", config)
 	}
 
@@ -761,7 +837,7 @@ func GenerateUpdateWitRequest(config Configuration, requestDict map[string]strin
 		"value": requestDict["Title"],
 	})
 
-	if requestDict["Priority"] != "-1"{
+	if requestDict["Priority"] != "-1" {
 		postList = append(postList, map[string]string{
 			"op":    "add",
 			"path":  "/fields/Microsoft.VSTS.Common.Priority",
@@ -770,7 +846,7 @@ func GenerateUpdateWitRequest(config Configuration, requestDict map[string]strin
 	}
 
 	iteration, err := GetIteration(config)
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 
@@ -780,12 +856,11 @@ func GenerateUpdateWitRequest(config Configuration, requestDict map[string]strin
 		"value": *iteration.Path,
 	})
 
-
 	err = fillUpdateWitRequestTimes(&postList, requestDict)
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
-	
+
 	postList = append(postList, map[string]string{
 		"op":    "add",
 		"path":  "/fields/System.AssignedTo",
@@ -798,19 +873,19 @@ func GenerateUpdateWitRequest(config Configuration, requestDict map[string]strin
 	}
 	fmt.Printf("Updating Azure Devops WorkITem  : %v\n", requestDict)
 
-	req, err := createRequest(config, ctx, fmt.Sprintf("wit/workitems/%s?api-version=7.0", requestDict["Id"]), http.MethodPost, bytes.NewBuffer(postData), "application/json-patch+json")
-	
+	req, err := createRequest(config, ctx, fmt.Sprintf("wit/workitems/%s?api-version=7.0", requestDict["Id"]), http.MethodPatch, bytes.NewBuffer(postData), "application/json-patch+json")
+
 	return req, err
 }
 
-func fillUpdateWitRequestTimes(postList *[]map[string]string, requestDict map[string]string) (error) {
-	
-	if requestDict["LeftTime"] != "-1"{
+func fillUpdateWitRequestTimes(postList *[]map[string]string, requestDict map[string]string) error {
+
+	if requestDict["LeftTime"] != "-1" {
 		_, err := strconv.Atoi(requestDict["LeftTime"])
 		if err != nil {
 			return err
 		}
-		
+
 		*postList = append(*postList, map[string]string{
 			"op":    "add",
 			"path":  "/fields/Microsoft.VSTS.Scheduling.RemainingWork",
@@ -818,12 +893,12 @@ func fillUpdateWitRequestTimes(postList *[]map[string]string, requestDict map[st
 		})
 	}
 
-	if requestDict["InvestedTime"] != "-1"{
-		_, err := strconv.Atoi(requestDict["InvestedTime"])	
+	if requestDict["InvestedTime"] != "-1" {
+		_, err := strconv.Atoi(requestDict["InvestedTime"])
 		if err != nil {
 			return err
 		}
-		
+
 		*postList = append(*postList, map[string]string{
 			"op":    "add",
 			"path":  "/fields/Microsoft.VSTS.Scheduling.CompletedWork",
@@ -833,3 +908,16 @@ func fillUpdateWitRequestTimes(postList *[]map[string]string, requestDict map[st
 
 	return nil
 }
+
+func getWorker(uniqueNamePart string) string {
+	// data = workItem.Fields["System.AssignedTo"].(map[string]interface{})["uniqueName"].(string)
+	ret := strings.Split(uniqueNamePart, ".")
+	nameRunes := []rune(ret[0])
+	nameRunes[0] = unicode.ToUpper(nameRunes[0])
+
+	lastNameRunes := []rune(ret[1])
+	lastNameRunes[0] = unicode.ToUpper(lastNameRunes[0])
+	return string(nameRunes) + " " + string(lastNameRunes)
+
+}
+
